@@ -24,7 +24,9 @@ logger = logging.getLogger("bump")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: initialize database tables and background scheduler
+    # Startup: validate centralized configuration, initialize database tables and background scheduler
+    validation = settings.validate_configuration()
+    logger.info("Configuration validated successfully from: %s (Provider: %s)", validation["source"], validation["llm_provider"])
     logger.info("Initializing Self-Maintaining APIs SQLite database...")
     init_db()
     logger.info("Starting background monitoring scheduler...")

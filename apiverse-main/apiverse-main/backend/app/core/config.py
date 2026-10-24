@@ -49,11 +49,38 @@ class Settings(BaseSettings):
     SANDBOX_DIR: Path = DATA_DIR / "sandbox"
 
     model_config = SettingsConfigDict(
-        env_file=str(PROJECT_ROOT / ".env"),
+        env_file=str((PROJECT_ROOT / ".env").resolve()),
         env_file_encoding="utf-8",
         extra="ignore"
     )
 
+    def validate_configuration(self) -> dict:
+        """
+        Validate essential environment configuration at startup.
+        Guarantees that secrets are never exposed or printed.
+        """
+        issues = []
+        if not self.PROJECT_NAME:
+            issues.append("PROJECT_NAME cannot be empty")
+        if not self.DATABASE_URL:
+            issues.append("DATABASE_URL cannot be empty")
+        
+        valid_providers = {"mock", "openai", "anthropic", "gemini", "custom"}
+        if self.LLM_PROVIDER not in valid_providers:
+            issues.append(f"Invalid LLM_PROVIDER '{self.LLM_PROVIDER}'. Must be one of {valid_providers}")
+
+        if issues:
+            raise ValueError(f"Configuration validation failed: {'; '.join(issues)}")
+
+        env_source = str((PROJECT_ROOT / ".env").resolve()) if (PROJECT_ROOT / ".env").exists() else "environment_variables"
+        return {
+            "valid": True,
+            "source": env_source,
+            "llm_provider": self.LLM_PROVIDER,
+            "approval_required": self.REQUIRE_DEVELOPER_APPROVAL,
+        }
+
 settings = Settings()
 settings.DEMO_REPOS_DIR.mkdir(parents=True, exist_ok=True)
 settings.SANDBOX_DIR.mkdir(parents=True, exist_ok=True)
+
